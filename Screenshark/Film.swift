@@ -14,6 +14,6 @@ struct Film: Identifiable {
     let synopsis: String
     let genre: String
     let note: Double
-    var isFavorite: Bool = false //proprieté favorite par défaut
+    var isFavorite: Bool = false // ajout de la proprieté favorite par défaut à false
 }
 
