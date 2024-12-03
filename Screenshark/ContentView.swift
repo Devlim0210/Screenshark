@@ -9,95 +9,117 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var searchText = ""
-    @State private var filmsFictifs = [
-        Film(titre: "Inception", affiche: "inception", synopsis: "A mind-bending thriller.", genre: "Sci-Fi", note: 8.8),
-        Film(titre: "The Matrix", affiche: "matrix", synopsis: "A hacker discovers reality is a simulation.", genre: "Sci-Fi", note: 8.7),
-        Film(titre: "Interstellar", affiche: "interstellar", synopsis: "Exploring space to save humanity.", genre: "Sci-Fi", note: 8.6)
-    ]
+    @State private var movies: [Movie] = []
     @State private var showFavoritesOnly = false
-
-        // Fonction pour filtrer la liste des films
-        var filteredFilms: [Film] {
-            let filmsToShow = showFavoritesOnly ? filmsFictifs.filter { $0.isFavorite } : filmsFictifs
-            if searchText.isEmpty {
-                return filmsToShow
-            } else {
-                return filmsFictifs.filter { $0.titre.lowercased().contains(searchText.lowercased()) }
-            }
+    
+    let movieService = MovieService()
+    
+    var filteredFilms: [Movie] {
+        let filmsToShow = showFavoritesOnly ? movies.filter { $0.isFavorite } : movies
+        if searchText.isEmpty {
+            return filmsToShow
+        } else {
+            return filmsToShow.filter { $0.title.lowercased().contains(searchText.lowercased()) }
         }
-
+    }
+    
     var body: some View {
-        NavigationView {
-            VStack {
-                //Titre et Barre de recherche
+        NavigationView { // Début NavigationView
+            VStack (alignment:.leading){ // Début VStack principal
+                // Titre et barre de recherche
                 Text("Welcome to Screenshark")
                     .font(.largeTitle)
-                    .foregroundColor(.primary) //utilisation de la couleur adaptive
-                    .padding()
+                    .foregroundColor(.primary)
+                    .padding(.horizontal)
                 
                 // Champ de recherche
                 TextField("Search movies", text: $searchText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding()
+                    .padding(.horizontal)
                 
                 // Toggle pour afficher uniquement les favoris
-                Toggle(isOn: $showFavoritesOnly){
-                    Text("show Favorites Only")
+                Toggle(isOn: $showFavoritesOnly) {
+                    Text("Show Favorites Only")
                         .foregroundColor(.primary)
                 }
-                .padding()
+                .padding(.horizontal)
                 
-                //Liste des films filtrée
-                List(filteredFilms.indices, id: \.self) { index in
-                                   let film = filteredFilms[index]
-                    HStack {
-                    //placement le Navigationlink autour du contenu principal
-                        HStack {
-                            NavigationLink(destination: DetailView(film: film)) {
-                                Image(film.affiche)
-                                    .resizable()
-                                    .frame(width: 50, height:75)
-                                    .cornerRadius(5)
-                                
-                                VStack(alignment : .leading){
-                                    Text(film.titre)
-                                        .font(.headline)
-                                        .foregroundColor(.primary)// texte adaptatif
-                                    Text(film.genre)
-                                        .font(.subheadline)
-                                        .foregroundColor(.gray)
-                                        .foregroundColor(.secondary)//Texte secondaire adaptatif
+                Spacer(minLength: 0)
+                
+                // Liste des films filtrée
+                List {
+                    ForEach(filteredFilms) { film in // Début ForEach pour parcourir chaque film dans la liste filtée
+                        
+                        NavigationLink(destination: DetailView(movie: film)) { // Lien vers la vue de détail
+                        HStack { // Début HStack pour chaque film
+                            // Image du film avec chargement asynchrone
+                            if let posterPath = film.posterPath {
+                                AsyncImage(url: URL(string: "https://image.tmdb.org/t/p/w500\(posterPath)")) { image in
+                                    image.resizable()
+                                } placeholder: {
+                                    Color.gray
                                 }
+                                .frame(width: 50, height: 75)
+                                .cornerRadius(5)
                             }
-                        }
+                            
+                            // Détails du film (titre et genre)
+                            VStack(alignment: .leading) { // Début VStack pour les détails du film
+                                Text(film.title)
+                                    .font(.headline)
+                                    .foregroundColor(.primary)  //texte adaptif
+                                Text(film.releaseDate ?? "Unknown")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)  //Texte secondaire adaptif
+                            } // Fin VStack pour les détails du film
+                            
                             Spacer()
-                            //Bouton de favori
+                            
+                            // Bouton de favori
                             Button(action: {
-                                toggleFavorite(for: index)
+                                toggleFavorite(for: film)
                             }) {
                                 Image(systemName: film.isFavorite ? "heart.fill" : "heart")
                                     .foregroundColor(film.isFavorite ? .red : .gray)
                             }
-                            .buttonStyle(BorderlessButtonStyle()) // Assure que le bouton ne capte que son propre clic
+                            .buttonStyle(BorderlessButtonStyle())  //assure que le bouton ne se capte que son propre clic
+                        } // Fin HStack pour chaque film
+                    }// Fin Navigationlink
+                        } // Fin ForEach
+                    } // Fin List
+                    
+                    .navigationTitle("Movies") //Titre de la vue Navigation
+                    .background(Color("AppBackground")) // Utilisation d'une couleur personnalisée
+                    .ignoresSafeArea()
+             
+               
+                .onAppear {
+                    // Récupère les films depuis l'API TMDb dès que la vue apparaît
+                    movieService.fetchPopularMovies { movies in
+                        if let movies = movies {
+                            self.movies = movies
                         }
                     }
-                    .navigationTitle("Movies")
-                    .background(Color("AppBackground"))  //Utilisation d'une couleur personnalisé
                 }
-            .background(Color("AppBackground")) //Couleur de fond adaptative
-            }
+            } // Fin VStack principal
+            } // Fin NavigationView
+            
         }
-        // fonction pour basculer le favori
-        func toggleFavorite(for index: Int) {
-            filmsFictifs[index].isFavorite.toggle()
-        }
-    }
-       //apercu
-    struct ContentView_Previews: PreviewProvider {
-        static var previews: some View {
-            ContentView()
-                .preferredColorScheme(.light) // Aper¢u en  mode clair
-            ContentView()
-                .preferredColorScheme(.dark) // Aper¢u en  mode sombre
+    
+    // Fonction pour basculer le favori
+    func toggleFavorite(for film: Movie) {
+        if let index = movies.firstIndex(where: { $0.id == film.id }) {
+            movies[index].isFavorite.toggle()
         }
     }
+}
+
+// Aperçu
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+            .preferredColorScheme(.light) // Aperçu en mode clair
+        ContentView()
+            .preferredColorScheme(.dark) // Aperçu en mode sombre
+    }
+}

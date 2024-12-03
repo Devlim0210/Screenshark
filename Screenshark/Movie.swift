@@ -14,6 +14,9 @@ struct Movie: Identifiable, Codable {
     let releaseDate: String?
     let voteAverage: Double
     
+    // Ajout de la propriété isFavorite, qui est modifiable
+      var isFavorite: Bool = false
+    
     enum CodingKeys: String, CodingKey {
         case id
         case title
