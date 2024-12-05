@@ -16,9 +16,9 @@ class MovieService{
     
     // Fonction pour récupérer les films populaires
       // Utilise une fermeture (closure) pour renvoyer les résultats de manière asynchrone
-    func fetchPopularMovies(completion: @escaping ([Movie]?) -> Void){
+    func fetchPopularMovies(page: Int, completion: @escaping ([Movie]?) -> Void){
         // Construction de l'URL avec la clé API et les paramètres de langue et de page
-               let urlString = "\(baseURL)/movie/popular?api_key=\(apiKey)&language=en-US&page=1"
+               let urlString = "\(baseURL)/movie/popular?api_key=\(apiKey)&language=en-US&page=\(page)"
                
                // Vérifie que l'URL est valide
                guard let url = URL(string: urlString) else {
@@ -47,7 +47,8 @@ class MovieService{
                        // Décode les données JSON reçues en un objet MovieResponse
                        let decoder = JSONDecoder()
                        let movieResponse = try decoder.decode(MovieResponse.self, from: data)
-                       
+                       //pour afficher le nombre de film recuperer dans le console
+                       print("Nombre de films récupérés : \(movieResponse.results.count)")
                        // Appelle la closure avec les résultats décodés
                        completion(movieResponse.results)
                    } catch {

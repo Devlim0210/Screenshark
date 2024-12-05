@@ -7,7 +7,7 @@
 
 import Foundation
 struct Movie: Identifiable, Codable {
-    let id: Int
+    let id: Int // Identifiant unique pour chaque film
     let title: String
     let overview: String
     let posterPath: String?

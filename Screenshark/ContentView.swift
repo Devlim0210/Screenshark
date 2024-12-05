@@ -11,6 +11,10 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var movies: [Movie] = []
     @State private var showFavoritesOnly = false
+    // ajout des deux variables pour suivre la page actuelle et l'etat de chargement
+    @State private var currentPage = 1  // Page actuelle
+    @State private var isLoading = false  // État de chargement
+    
     
     let movieService = MovieService()
     
@@ -48,7 +52,7 @@ struct ContentView: View {
                 
                 // Liste des films filtrée
                 List {
-                    ForEach(filteredFilms) { film in // Début ForEach pour parcourir chaque film dans la liste filtée
+                    ForEach(filteredFilms, id: \.id) { film in // Début ForEach pour parcourir chaque film dans la liste filtée
                         
                         NavigationLink(destination: DetailView(movie: film)) { // Lien vers la vue de détail
                         HStack { // Début HStack pour chaque film
@@ -86,25 +90,35 @@ struct ContentView: View {
                         } // Fin HStack pour chaque film
                     }// Fin Navigationlink
                         } // Fin ForEach
+                    
+                    // Affiche un indicateur de chargement pour les nouvelles pages
+                    if isLoading {
+                           ProgressView()
+                       } else {
+                           ProgressView()
+                               .onAppear {
+                                   loadMovies(page: currentPage)
+                               }
+                       }
                     } // Fin List
                     
                     .navigationTitle("Movies") //Titre de la vue Navigation
                     .background(Color("AppBackground")) // Utilisation d'une couleur personnalisée
                     .ignoresSafeArea()
-             
+                    .listStyle(PlainListStyle()) // Supprime les marges par défaut
+                    .onAppear {
+                                      if movies.isEmpty {
+                                          loadMovies(page: currentPage)
+                                      }
+                                  }
                
-                .onAppear {
-                    // Récupère les films depuis l'API TMDb dès que la vue apparaît
-                    movieService.fetchPopularMovies { movies in
-                        if let movies = movies {
-                            self.movies = movies
-                        }
-                    }
+              
+                    
                 }
             } // Fin VStack principal
             } // Fin NavigationView
             
-        }
+        
     
     // Fonction pour basculer le favori
     func toggleFavorite(for film: Movie) {
@@ -112,7 +126,48 @@ struct ContentView: View {
             movies[index].isFavorite.toggle()
         }
     }
+   
+//Fonction pour charger les films (pagination)
+func loadMovies(page: Int) {
+    guard !isLoading else {
+        print("Chargement déjà en cours, attente...")
+        return }// Empêche plusieurs chargements simultanés
+
+    isLoading = true  // Indique que le chargement est en cours
+    print("Chargement de la page : \(page)")
+    movieService.fetchPopularMovies(page: page) { newMovies in
+        if let newMovies = newMovies {
+            DispatchQueue.main.async {
+               
+                // Log pour vérifier les IDs des films récupérés
+                              print("Films récupérés pour la page \(page) : \(newMovies.map { $0.id })")
+                
+                // Supprime les doublons en vérifiant les IDs
+                               let uniqueMovies = newMovies.filter { newMovie in
+                                   !self.movies.contains(where: { $0.id == newMovie.id })
+                               }
+                self.movies += uniqueMovies  // Ajoute les nouveaux films
+                print("Nouveaux films ajoutés : \(uniqueMovies.count)")
+                print("Total de films dans la liste : \(self.movies.count)") // Log pour vérifier la taille totale
+                if !uniqueMovies.isEmpty {
+                self.currentPage += 1  // Passe à la page suivante uniquement si les films sont ajoutés
+                }
+                self.isLoading = false   // Indique que le chargement est terminé
+            }
+        } else {
+            DispatchQueue.main.async {
+                print("Erreur ou pas de nouveaux films.")
+                self.isLoading = false   // Arrête le chargement en cas d'erreur
+            }
+        }
+    }
 }
+}
+    
+
+
+
+
 
 // Aperçu
 struct ContentView_Previews: PreviewProvider {
